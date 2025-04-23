@@ -1,32 +1,37 @@
-version: "3.7"
-
+version: '3'
 services:
-  db:
-    image: mysql:5.7
-    container_name: scada-mysql
-    environment:
-      MYSQL_ROOT_PASSWORD: rootpass
-      MYSQL_DATABASE: scadalts
-      MYSQL_USER: scadalts_user
-      MYSQL_PASSWORD: StrongPassword123!
+  database:
+    container_name: mysql
+    image: mysql/mysql-server:8.0.32
     ports:
       - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=root
+      - MYSQL_DATABASE=scadalts
     volumes:
-      - db_data:/var/lib/mysql
+      - ./db_data:/var/lib/mysql:rw
+      - ./db_conf:/etc/mysql:ro
+    command: --log_bin_trust_function_creators=1
 
   scadalts:
     image: scadalts/scadalts:latest
-    container_name: scada-lts
-    depends_on:
-      - db
     environment:
-      DB_HOST: db
-      DB_PORT: 3306
-      DB_NAME: scadalts
-      DB_USER: scadalts_user
-      DB_PASS: StrongPassword123!
+      - CATALINA_OPTS=-Xmx2G -Xms2G
     ports:
       - "8080:8080"
+    depends_on:
+      - database
+    volumes:
+      - ./tomcat_log:/usr/local/tomcat/logs:rw
+    command:
+      - /usr/bin/wait-for-it
+      - --host=database
+      - --port=3306
+      - --timeout=30
+      - --strict
+      - --
+      - /usr/local/tomcat/bin/catalina.sh
+      - run
 
-volumes:
-  db_data:
